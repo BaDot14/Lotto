@@ -1,9 +1,11 @@
 import streamlit as st
 import pandas as pd
-from io import StringIO
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_absolute_error
 
 # Streamlit app title
-st.title("Lotto Dataset Analysis")
+st.title("Lotto Dataset Prediction")
 
 # File uploader
 uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
@@ -16,52 +18,34 @@ if uploaded_file is not None:
     st.subheader("Dataset Preview")
     st.write(data.head())
 
-    # Check for missing values
-    st.subheader("Missing Values")
-    missing_values = data.isnull().sum()
-    st.write(missing_values)
+    # Check for necessary columns
+    required_columns = ['NUMBER DRAWN 1', 'NUMBER DRAWN 2', 'NUMBER DRAWN 3', 
+                        'NUMBER DRAWN 4', 'NUMBER DRAWN 5', 'NUMBER DRAWN 6', 'DRAW NUMBER']
+    if all(col in data.columns for col in required_columns):
+        # Select features and target
+        X = data[['NUMBER DRAWN 1', 'NUMBER DRAWN 2', 'NUMBER DRAWN 3', 
+                  'NUMBER DRAWN 4', 'NUMBER DRAWN 5', 'NUMBER DRAWN 6']]
+        y = data['DRAW NUMBER']
 
-    # Convert date column to datetime if applicable
-    if 'DRAW DATE' in data.columns:
-        data['DRAW DATE'] = pd.to_datetime(data['DRAW DATE'], errors='coerce')
-        st.write("'DRAW DATE' column converted to datetime format.")
+        # Split the data
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
-    # Display column names
-    st.subheader("Column Names")
-    st.write(data.columns.tolist())
+        # Train the model
+        model = LinearRegression()
+        model.fit(X_train, y_train)
 
-    # Feature and label selection
-    st.subheader("Select Features and Target")
+        # Make predictions
+        predictions = model.predict(X_test)
 
-    # Multiselect for features
-    features = st.multiselect(
-        "Select feature columns",
-        options=data.columns,
-        default=[col for col in data.columns if "NUMBER DRAWN" in col]
-    )
+        # Calculate accuracy
+        accuracy = 100 - mean_absolute_error(y_test, predictions)
 
-    # Dropdown for target
-    target = st.selectbox(
-        "Select target column",
-        options=data.columns,
-        index=data.columns.get_loc('DRAW NUMBER') if 'DRAW NUMBER' in data.columns else 0
-    )
-
-    if features and target:
-        # Display selected features and target
-        st.write("Selected Features:", features)
-        st.write("Selected Target:", target)
-
-        # Prepare features (X) and target (y)
-        X = data[features]
-        y = data[target]
-
-        st.subheader("Feature and Target Preview")
-        st.write("Features (X):", X.head())
-        st.write("Target (y):", y.head())
-
+        # Display results
+        st.subheader("Prediction Results")
+        st.write(f"Accuracy: {accuracy:.2f}%")
+        st.write("Predicted Numbers:")
+        st.write(predictions[:10])  # Show the first 10 predictions
     else:
-        st.warning("Please select at least one feature and a target column.")
-
+        st.error(f"The dataset must contain the following columns: {', '.join(required_columns)}")
 else:
     st.info("Awaiting file upload. Please upload a CSV file.")
